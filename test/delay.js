@@ -2,6 +2,7 @@ var browserify = require('../');
 var vm = require('vm');
 var test = require('tap').test;
 var through = require('through2');
+var path = require('path');
 
 test('delay for pipelines', function (t) {
     t.plan(3);
@@ -9,8 +10,8 @@ test('delay for pipelines', function (t) {
     var b = browserify(__dirname + '/delay/main.js');
     b.pipeline.get('record').push(through.obj(function (row, enc, next) {
         if (row.file) {
-            t.equal(row.file, __dirname + '/delay/main.js');
-            row.file = __dirname + '/delay/diverted.js';
+            t.equal(row.file, path.join(__dirname, '/delay/main.js'));
+            row.file = path.join(__dirname, '/delay/diverted.js');
         }
         this.push(row);
         next();
