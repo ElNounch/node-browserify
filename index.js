@@ -105,15 +105,15 @@ Browserify.prototype.require = function (file, opts) {
     var basedir = defined(opts.basedir, self._options.basedir, process.cwd());
     var expose = opts.expose;
     if (file === expose && /^[\.]/.test(expose)) {
-        expose = '/' + path.relative(basedir, expose);
+        expose = computeID(basedir, expose);
     }
     if (expose === undefined && this._options.exposeAll) {
         expose = true;
     }
     if (expose === true) {
-        expose = '/' + path.relative(basedir, file);
+        expose = computeID(basedir, file);
     }
-    
+
     if (isStream(file)) {
         self._pending ++;
         var order = self._entryOrder ++;
@@ -156,8 +156,11 @@ Browserify.prototype.require = function (file, opts) {
         row = xtend(opts, { file: file });
     }
     
+    var row_basedir = defined(row.basedir, basedir);
+    if(typeof row.file !== 'undefined') row.file = cleanFilepath(row_basedir,file);
+    
     if (!row.id) {
-        row.id = expose || file;
+        row.id = expose || row.file;
     }
     if (expose || !row.entry) {
         // Make this available to mdeps so that it can assign the value when it
@@ -242,15 +245,15 @@ Browserify.prototype.external = function (file, opts) {
     if (!opts) opts = {};
     var basedir = defined(opts.basedir, process.cwd());
     this._external.push(file);
-    this._external.push('/' + path.relative(basedir, file));
+    this._external.push(computeID(basedir, file));
     return this;
 };
 
 Browserify.prototype.exclude = function (file, opts) {
     if (!opts) opts = {};
     var basedir = defined(opts.basedir, process.cwd());
-    this._exclude.push(file);
-    this._exclude.push('/' + path.relative(basedir, file));
+    this._exclude.push(cleanFilepath(basedir,file));
+    this._exclude.push(computeID(basedir, file));
     return this;
 };
 
@@ -258,13 +261,7 @@ Browserify.prototype.ignore = function (file, opts) {
     if (!opts) opts = {};
     var basedir = defined(opts.basedir, process.cwd());
 
-    // Handle relative paths
-    if (file[0] === '.') {
-        this._ignore.push(path.resolve(basedir, file));
-    }
-    else {
-        this._ignore.push(file);
-    }
+    this._ignore.push(cleanFilepath(basedir, file));
     return this;
 };
 
@@ -395,10 +392,10 @@ Browserify.prototype._createPipeline = function (opts) {
             if (self._external.indexOf(row.file) >= 0) return next();
             
             if (isAbsolutePath(row.id)) {
-                row.id = '/' + path.relative(basedir, row.file);
+                row.id = computeID(basedir, row.file);
             }
             Object.keys(row.deps || {}).forEach(function (key) {
-                row.deps[key] = '/' + path.relative(basedir, row.deps[key]);
+                row.deps[key] = computeID(basedir, row.deps[key]);
             });
             this.push(row);
             next();
@@ -461,7 +458,7 @@ Browserify.prototype._createDeps = function (opts) {
             }
             
             if (file) {
-                var ex = '/' + path.relative(basedir, file);
+                var ex = computeID(basedir, file);
                 if (self._external.indexOf(ex) >= 0) {
                     return cb(null, ex);
                 }
@@ -657,7 +654,7 @@ Browserify.prototype._label = function (opts) {
         var prev = row.id;
 
         if (self._external.indexOf(row.id) >= 0) return next();
-        if (self._external.indexOf('/' + path.relative(basedir, row.id)) >= 0) {
+        if (self._external.indexOf(computeID(basedir, row.id)) >= 0) {
             return next();
         }
         if (self._external.indexOf(row.file) >= 0) return next();
@@ -674,7 +671,7 @@ Browserify.prototype._label = function (opts) {
             }
 
             var afile = path.resolve(path.dirname(row.file), key);
-            var rfile = '/' + path.relative(basedir, afile);
+            var rfile = computeID(basedir, afile);
             if (self._external.indexOf(rfile) >= 0) {
                 row.deps[key] = rfile;
             }
@@ -782,4 +779,14 @@ function isExternalModule (file) {
         /^(\.|\w:)/ :
         /^[\/.]/;
     return !regexp.test(file);
+}
+function cleanFilepath(basedir,file) {
+    if(isExternalModule(file)) {
+        return path.normalize(file).replace(/\\/g,'/');
+    } else {
+        return path.resolve(basedir,file);
+    }
+}
+function computeID(basedir,file) {
+    return '/' + path.relative(basedir,file).replace(/\\/g,'/');
 }
