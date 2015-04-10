@@ -150,7 +150,7 @@ Browserify.prototype.require = function (file, opts) {
     }
     else if (isExternalModule(file)) {
         // external module or builtin
-        row = xtend(opts, { id: expose || file, file: file });
+        row = xtend(opts, { module: file });
     }
     else {
         row = xtend(opts, { file: file });
