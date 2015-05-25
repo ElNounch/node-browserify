@@ -1,0 +1,35 @@
+version: "{branch}-{build}"
+
+environment:
+  matrix:
+    # Node.js
+    - nodejs_version: 0.12
+    # Io.js
+    - iojs_version: 2
+    # Previous versions
+    - nodejs_version: 0.10
+    - nodejs_version: 0.8
+    - iojs_version: 1
+
+install:
+  # Install required version of Node.js/Io.js
+  - ps: Install-Product node ($env:nodejs_version + $env:iojs_version)
+  # Update npm itself
+  - set PATH=%APPDATA%\npm;%APPVEYOR_BUILD_FOLDER%\node_modules\.bin;%PATH%
+  - npm install -g npm
+  # Install dependencies
+  - npm install
+
+# Don't actually build
+build: off
+
+test_script:
+  # Output usefull info for debugging
+  - node --version
+  - npm --version
+  # Run tests
+  - tap test/*.js --reporter=classic
+
+# Caching npm parts
+cache:
+  - node_modules -> package.json                        # local npm modules
